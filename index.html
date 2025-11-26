@@ -151,6 +151,23 @@
       color: var(--text-secondary);
     }
 
+    .logout-btn {
+      background: #ff4444;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 8px;
+      width: 100%;
+      transition: background 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: #cc0000;
+    }
+
     .online-users {
       flex: 1;
       overflow-y: auto;
@@ -223,6 +240,17 @@
       }
     }
 
+    @keyframes slideOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+    }
+
     .message.own {
       flex-direction: row-reverse;
     }
@@ -257,6 +285,33 @@
       border-radius: 18px;
       word-wrap: break-word;
       line-height: 1.4;
+      position: relative;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      font-size: 14px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .message.own .message-bubble:hover .delete-btn {
+      display: flex;
+    }
+
+    .delete-btn:hover {
+      background: #ff4444;
     }
 
     .message.own .message-bubble {
@@ -505,6 +560,7 @@
         <div class="user-info">
           <div class="user-name" id="currentUserName"></div>
           <div class="user-status">Online</div>
+          <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
       </div>
 
@@ -555,6 +611,7 @@
     let currentUser = null;
     let currentUserId = null;
     let typingTimeout = null;
+    let messageListeners = {};
 
     // Theme Management
     function toggleTheme() {
@@ -601,13 +658,20 @@
       const avatarImg = document.querySelector('#avatarPreview img');
       const avatarData = avatarImg ? avatarImg.src : null;
 
+      currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
       currentUser = {
         name: username,
         avatar: avatarData,
         joinedAt: Date.now()
       };
 
-      currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      // Save to localStorage for persistence
+      localStorage.setItem('chatUser', JSON.stringify({
+        id: currentUserId,
+        name: username,
+        avatar: avatarData
+      }));
 
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('chatContainer').classList.remove('hidden');
@@ -623,6 +687,33 @@
       updateOnlineStatus(true);
       loadMessages();
       loadOnlineUsers();
+    }
+
+    // Logout Function
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        updateOnlineStatus(false);
+        stopTyping();
+        
+        // Clear localStorage
+        localStorage.removeItem('chatUser');
+        
+        // Reset variables
+        currentUser = null;
+        currentUserId = null;
+        
+        // Clear UI
+        document.getElementById('messagesContainer').innerHTML = '';
+        document.getElementById('onlineUsersList').innerHTML = '';
+        
+        // Show login screen
+        document.getElementById('chatContainer').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+        
+        // Reset login form
+        document.getElementById('usernameInput').value = '';
+        document.getElementById('avatarPreview').innerHTML = '<span id="avatarLetter">?</span>';
+      }
     }
 
     // Online Status Management
@@ -675,12 +766,13 @@
     function loadMessages() {
       db.ref('messages').limitToLast(50).on('child_added', (snapshot) => {
         const message = snapshot.val();
-        displayMessage(message);
+        const messageId = snapshot.key;
+        displayMessage(message, messageId);
       });
     }
 
     // Display Message
-    function displayMessage(message) {
+    function displayMessage(message, messageId) {
       const container = document.getElementById('messagesContainer');
       const isOwn = message.userId === currentUserId;
       
@@ -690,6 +782,7 @@
 
       const messageEl = document.createElement('div');
       messageEl.className = `message ${isOwn ? 'own' : ''}`;
+      messageEl.setAttribute('data-message-id', messageId);
       messageEl.innerHTML = `
         ${!isOwn ? `<div class="avatar avatar-small">${avatarHtml}</div>` : ''}
         <div class="message-content">
@@ -697,13 +790,41 @@
             <span class="message-sender">${message.sender}</span>
             <span class="message-time">${formatTime(message.timestamp)}</span>
           </div>
-          <div class="message-bubble">${escapeHtml(message.text)}</div>
+          <div class="message-bubble">
+            ${escapeHtml(message.text)}
+            ${isOwn ? `<button class="delete-btn" onclick="deleteMessage('${messageId}')" title="Delete message">×</button>` : ''}
+          </div>
         </div>
         ${isOwn ? `<div class="avatar avatar-small">${avatarHtml}</div>` : ''}
       `;
 
       container.appendChild(messageEl);
       container.scrollTop = container.scrollHeight;
+    }
+
+    // Delete Message
+    function deleteMessage(messageId) {
+      if (confirm('Delete this message?')) {
+        db.ref('messages/' + messageId).once('value', (snapshot) => {
+          const message = snapshot.val();
+          if (message && message.userId === currentUserId) {
+            db.ref('messages/' + messageId).remove()
+              .then(() => {
+                // Remove from UI
+                const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+                if (messageEl) {
+                  messageEl.style.animation = 'slideOut 0.3s ease';
+                  setTimeout(() => messageEl.remove(), 300);
+                }
+              })
+              .catch((error) => {
+                alert('Failed to delete message: ' + error.message);
+              });
+          } else {
+            alert('You can only delete your own messages');
+          }
+        });
+      }
     }
 
     // Send Message
@@ -786,6 +907,41 @@
 
     // Initialize
     loadTheme();
+
+    // Check if user is already logged in
+    window.addEventListener('DOMContentLoaded', function() {
+      const savedUser = localStorage.getItem('chatUser');
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser);
+          currentUserId = userData.id;
+          currentUser = {
+            name: userData.name,
+            avatar: userData.avatar,
+            joinedAt: Date.now()
+          };
+
+          // Show chat interface
+          document.getElementById('loginScreen').classList.add('hidden');
+          document.getElementById('chatContainer').classList.remove('hidden');
+
+          // Set user info
+          document.getElementById('currentUserName').textContent = userData.name;
+          const currentAvatar = document.getElementById('currentUserAvatar');
+          if (userData.avatar) {
+            currentAvatar.innerHTML = `<img src="${userData.avatar}" alt="${userData.name}"><div class="online-indicator"></div>`;
+          } else {
+            currentAvatar.innerHTML = `<span id="currentUserLetter">${userData.name[0].toUpperCase()}</span><div class="online-indicator"></div>`;
+          }
+
+          updateOnlineStatus(true);
+          loadMessages();
+          loadOnlineUsers();
+        } catch (e) {
+          localStorage.removeItem('chatUser');
+        }
+      }
+    });
   </script>
 </body>
 </html>
