@@ -6,21 +6,23 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="login-screen" id="login">
-    <h2>Enter Chat</h2>
-    <input id="name" placeholder="Your Name">
-    <button onclick="enterChat()">Join</button>
-  </div>
 
-  <div class="chat-container hidden" id="chat">
+<div class="login-screen" id="login">
+    <h2>Enter Chat</h2>
+    <input id="username" placeholder="Your Name">
+    <button onclick="enterChat()">Join</button>
+</div>
+
+<div class="chat-container hidden" id="chat">
     <div class="header">Simple Chat</div>
     <div class="messages" id="messages"></div>
     <div class="input-area">
-      <input id="messageBox" placeholder="Type a message">
-      <button onclick="sendMessage()">Send</button>
+        <input id="messageBox" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
     </div>
-  </div>
+</div>
 
+<!-- Firebase v8 -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
