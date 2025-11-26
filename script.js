@@ -18,13 +18,23 @@
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
-let username = "";
+// Initialize Firebase (v8 syntax)
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
 
+// -----------------------------
+// Chat Join Function
+// -----------------------------
 function enterChat() {
-  username = document.getElementById("name").value;
-  if (!username) return alert("Enter a name");
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("chat").classList.remove("hidden");
+    let username = document.getElementById("username").value.trim();
+
+    if (username === "") {
+        alert("Enter a name!");
+        return;
+    }
+
+    localStorage.setItem("chatUser", username);
+    window.location.href = "chat.html";
 }
 
 function sendMessage() {
