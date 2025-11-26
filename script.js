@@ -1,6 +1,4 @@
-// ---------------------------------------------
-// Firebase v8 CONFIG + INIT
-// ---------------------------------------------
+// Firebase v8 Config
 var firebaseConfig = {
     apiKey: "AIzaSyDbf5cHMOIluUjriXxe6NhCKT329HyVNgc",
     authDomain: "chatroom-15379.firebaseapp.com",
@@ -12,13 +10,12 @@ var firebaseConfig = {
     measurementId: "G-N3R2EF2QWM"
 };
 
-// Initialize Firebase (v8 syntax)
+// Initialize Firebase v8
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
-// ---------------------------------------------
+
 // JOIN CHAT
-// ---------------------------------------------
 function enterChat() {
     let username = document.getElementById("username").value.trim();
 
@@ -30,40 +27,3 @@ function enterChat() {
     localStorage.setItem("chatUser", username);
     window.location.href = "chat.html";
 }
-
-// ---------------------------------------------
-// SEND MESSAGE
-// ---------------------------------------------
-var username = localStorage.getItem("chatUser");
-
-function sendMessage() {
-    let msg = document.getElementById("messageBox").value;
-
-    if (!msg) return;
-
-    db.ref("messages").push({
-        user: username,
-        text: msg,
-        time: Date.now()
-    });
-
-    document.getElementById("messageBox").value = "";
-}
-
-// ---------------------------------------------
-// DISPLAY MESSAGES IN REALTIME
-// ---------------------------------------------
-db.ref("messages").on("child_added", function(snapshot) {
-    let msg = snapshot.val();
-    let box = document.getElementById("messages");
-
-    let div = document.createElement("div");
-    div.className = "message";
-
-    div.innerHTML = `
-        <strong>${msg.user}</strong>: ${msg.text}
-    `;
-
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
-});
